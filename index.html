@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Cosmic Catcher</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a2e;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #gameContainer {
+            width: 400px;
+            height: 500px;
+            margin: 20px auto;
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><rect width="400" height="500" fill="%23000033"/><g fill="%23FFF"><circle cx="50" cy="50" r="1" opacity="0.8"/><circle cx="150" cy="150" r="1" opacity="0.8"/><circle cx="250" cy="250" r="1" opacity="0.8"/><circle cx="350" cy="350" r="1" opacity="0.8"/><circle cx="100" cy="400" r="1" opacity="0.8"/><circle cx="300" cy="100" r="1" opacity="0.8"/><circle cx="200" cy="300" r="1" opacity="0.8"/></g></svg>');
+        }
+
+        .basket {
+            width: 60px;
+            height: 40px;
+            background: linear-gradient(45deg, #8B4513, #A0522D);
+            position: absolute;
+            bottom: 0;
+            border-radius: 0 0 8px 8px;
+            transition: left 0.1s ease;
+            box-shadow: 0 0 15px rgba(139, 69, 19, 0.5);
+        }
+
+        .star {
+            width: 20px;
+            height: 20px;
+            background: #ffeb3b;
+            position: absolute;
+            border-radius: 50%;
+            box-shadow: 
+                0 0 15px #ffeb3b,
+                0 0 30px #ffeb3b,
+                0 0 45px #ffeb3b;
+            filter: blur(0.5px);
+            animation: twinkle 1s infinite alternate;
+        }
+
+        @keyframes twinkle {
+            from { opacity: 0.8; }
+            to { opacity: 1; }
+        }
+
+        .motion-trail {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ffeb3b;
+            border-radius: 50%;
+            opacity: 0.3;
+            pointer-events: none;
+            filter: blur(3px);
+        }
+
+        .score {
+            text-align: center;
+            font-size: 24px;
+            margin: 10px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        button {
+            display: block;
+            margin: 10px auto;
+            padding: 10px 20px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: linear-gradient(45deg, #45a049, #3d8b40);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="score">Score: <span id="score">0</span></div>
+    <button onclick="startGame()" id="startButton">Start Game</button>
+    <div id="gameContainer">
+        <div id="basket" class="basket"></div>
+    </div>
+
+    <script>
+        let score = 0;
+        let gameRunning = false;
+        let stars = [];
+        let trails = [];
+        let basket = document.getElementById('basket');
+        let gameContainer = document.getElementById('gameContainer');
+        let scoreDisplay = document.getElementById('score');
+        let startButton = document.getElementById('startButton');
+
+        // Create audio elements
+        const collectSound = new Audio('data:audio/wav;base64,UklGRnQGAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YU8GAACBhYqFho+IiYiJhYyFh4eDhoeEhIaGg4aGhYSGhoaGhoeGh4aHhoaHhoeGiIeHhoeHh4iHiIeHiIeHiIiIh4iHiIiIiImIiYiJnqSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSk')
+        const gameOverSound = new Audio('data:audio/wav;base64,UklGRpgJAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YXMJAACAgICAgICAgICAgICAgICAgICAgICAgICBgYGBgYGBgoKCgoKCgoODg4ODg4OEhISEhISEhYWFhYWFhYaGhoaGhoaHh4eHh4eHiIiIiIiIiImJiYmJiYmKioqKioqKi4uLi4uLi4yMjIyMjIyNjY2NjY2Njo6Ojo6Ojo+Pj4+Pj4+QkJCQkJCQkZGRkZGRkZKSkpKSkpKTk5OTk5OTlJSUlJSUlJWVlZWVlZWWlpaWlpaWl5eXl5eXl5iYmJiYmJiZmZmZmZmZmpqampqampubm5ubm5ucnJycnJycnZ2dnZ2dnZ6enp6enp6fn5+fn5+foKCgoKCgoKGhoaGhoaGioqKioqKio6Ojo6Ojo6SkpKSkpKSlpaWlpaWlpqampqampqenpqampqanp6enp6enqKioqKioqKmpqampqamqqqqqqqqqqqqqqqqqqampqKioqKioqKenpqampqWlpaWlpaWko6Ojo6OjoqKioqKioqGhoaGhoaCgoKCgoKCfn5+fn5+enp6enp6enZ2dnZ2dnZycnJycnJybm5ubm5ubmpqampqampmZmZmZmZmYmJiYmJiXl5eXl5eXlpaWlpaWlpWVlZWVlZWUlJSUlJSUk5OTk5OTk5KSkpKSkpKRkZGRkZGRkJCQkJCQkI+Pj4+Pj4+Ojo6Ojo6OjY2NjY2NjYyMjIyMjIyLi4uLi4uLioqKioqKiomJiYmJiYmIiIiIiIiIh4eHh4eHh4aGhoaGhoaFhYWFhYWFhISEhISEhIODg4ODg4OCgoKCgoKCgYGBgYGBgYCAgICAgICAgICAgICAgICAgICAgICAgH9/f39/f39+fn5+fn5+fX19fX19fXx8fHx8fHx7e3t7e3t7enp6enp6enl5eXl5eXl4eHh4eHh4d3d3d3d3d3Z2dnZ2dnZ1dXV1dXV1dHR0dHR0dHNzc3Nzc3NycnJycnJycXFxcXFxcXBwcHBwcHBvb29vb29vbm5ubm5ubm1tbW1tbW1sbGxsbGxsbGxsbGxsbGxsbGxsbGxsbW1tbW1tbW5ubm5ubm9vb29vb29wcHBwcHBwcXFxcXFxcXJycnJycnJzc3Nzc3Nzc3Nzc3NzcnJycnJycXFxcXFxcXBwcHBwcHBvb29vb29vbm5ubm5ubm1tbW1tbW1sbGxsbGxsa2tra2tra2pqampqamppAA==')
+
+        function updateBasketPosition(e) {
+            if (!gameRunning) return;
+            const rect = gameContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const newX = Math.max(0, Math.min(x - 30, gameContainer.offsetWidth - 60));
+            basket.style.left = newX + 'px';
+        }
+
+        function createStar() {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * (gameContainer.offsetWidth - 20) + 'px';
+            star.style.top = '0px';
+            gameContainer.appendChild(star);
+            return star;
+        }
+
+        function createTrail(star) {
+            const trail = document.createElement('div');
+            trail.className = 'motion-trail';
+            trail.style.left = star.style.left;
+            trail.style.top = star.style.top;
+            gameContainer.appendChild(trail);
+            setTimeout(() => {
+                gameContainer.removeChild(trail);
+            }, 200);
+        }
+
+        function moveStar(star) {
+            const currentTop = parseInt(star.style.top);
+            createTrail(star);
+            
+            if (currentTop > gameContainer.offsetHeight - 60) {
+                const starLeft = parseInt(star.style.left);
+                const basketLeft = parseInt(basket.style.left || 0);
+                if (starLeft > basketLeft - 20 && starLeft < basketLeft + 60) {
+                    score++;
+                    scoreDisplay.textContent = score;
+                    collectSound.currentTime = 0;
+                    collectSound.play();
+                } else {
+                    endGame();
+                }
+                gameContainer.removeChild(star);
+                return false;
+            }
+            star.style.top = (currentTop + 5) + 'px';
+            return true;
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            if (Math.random() < 0.05) {
+                stars.push(createStar());
+            }
+
+            stars = stars.filter(star => moveStar(star));
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            score = 0;
+            scoreDisplay.textContent = score;
+            gameRunning = true;
+            startButton.style.display = 'none';
+            stars.forEach(star => gameContainer.removeChild(star));
+            stars = [];
+            gameLoop();
+        }
+
+        function endGame() {
+            gameRunning = false;
+            startButton.style.display = 'block';
+            startButton.textContent = 'Play Again';
+            stars.forEach(star => gameContainer.removeChild(star));
+            stars = [];
+            gameOverSound.play();
+        }
+
+        gameContainer.addEventListener('mousemove', updateBasketPosition);
+        basket.style.left = (gameContainer.offsetWidth / 2 - 30) + 'px';
+    </script>
+</body>
+</html>
